@@ -29,14 +29,14 @@ npm run dev                  # eve terminal UI; chat with the agent locally
 npm run deploy               # eve deploy → Vercel
 ```
 
-After the first deploy, point a Linq webhook (`message.received`) at `https://<your-deployment>/eve/v1/linq` and store its `whsec_` secret as `LINQ_WEBHOOK_SECRET`.
+The Linq channel needs `LINQ_API_KEY` at build time, so add the Vercel env vars before the first deploy (`npx eve link`, then `vercel env add …`). After the first deploy, create a Linq webhook subscription (`message.received`) pointing at `https://<your-deployment>/eve/v1/linq`, store the returned `whsec_` as `LINQ_WEBHOOK_SECRET`, and deploy once more.
 
 ## Environment
 
 | Variable | From |
 | --- | --- |
-| `LINQ_API_KEY` | Linq dashboard → Developer Tools → API tokens |
+| `LINQ_API_KEY` | Linq dashboard → Developer Tools → Your API Token (sandbox: dashboard.linqapp.com/sandbox) |
 | `LINQ_WEBHOOK_SECRET` | Returned once when you create the webhook subscription |
-| `AGENTCARD_CLIENT_ID` / `AGENTCARD_CLIENT_SECRET` | Agentcard dashboard → Settings → API credentials |
+| `AGENTCARD_CLIENT_ID` / `AGENTCARD_CLIENT_SECRET` | Shown during Agentcard onboarding; later under the org's Settings → OAuth |
 
 The model runs through the Vercel AI Gateway (`agent/agent.ts`). On Vercel it authenticates with the project's OIDC token; locally, run `npm run dev` and sign in with `/login`.
