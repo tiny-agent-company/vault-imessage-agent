@@ -16,7 +16,8 @@ agent/
   instructions.md             how the agent talks and when it enrolls a card
   channels/linq.ts            inbound iMessage/SMS via Linq webhooks
   lib/agentcard.ts            client-credentials token + fetch wrapper
-  tools/create_vault_link.ts  POST /api/v2/vault_sessions → link to text
+  lib/linq.ts                 texts a message from the agent's Linq number
+  tools/create_vault_link.ts  POST /api/v2/vault_sessions → texts the link as its own message
   tools/check_vault_session.ts GET /api/v2/vault_sessions/:id → pending | linked | expired
 ```
 
