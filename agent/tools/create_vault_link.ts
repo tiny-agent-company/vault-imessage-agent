@@ -23,6 +23,10 @@ export default defineTool({
       url: session.url,
       expires_at: session.expires_at,
       test_mode: session.test_mode,
+      // Ready to send as-is. The URL is alone on the last line: anything glued
+      // to it becomes part of the link the phone opens, and a link with extra
+      // characters fails verification and lands on the Vault's sign-in page.
+      message: `Add a card once and I can start buying for you. Text me when you're done.\n\n${session.url}`,
     };
   },
 });
