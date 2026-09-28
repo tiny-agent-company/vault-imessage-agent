@@ -2,6 +2,7 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { agentcard } from "../lib/agentcard";
 import { sendText } from "../lib/linq";
+import { rememberVaultSession } from "../lib/store";
 
 interface VaultSession {
   id: string;
@@ -28,6 +29,9 @@ export default defineTool({
     if (!to) throw new Error("No phone number to text the link to");
 
     const session = await agentcard<VaultSession>("POST", "/api/v2/vault_sessions", {});
+    // So the Agentcard webhook (channels/agentcard.ts) can wake this
+    // conversation up when the card lands.
+    await rememberVaultSession(session.id, ctx.session.id);
     // The URL is the whole message: a link with anything glued to it fails
     // verification and lands the user on the Vault's sign-in page.
     await sendText(to, session.url);

@@ -15,6 +15,7 @@
     "typecheck": "tsc"
   },
   "dependencies": {
+    "@upstash/redis": "^1.39.0",
     "@vercel/connect": "2.2.0",
     "ai": "^7.0.105",
     "eve": "^0.67.2",
@@ -27,5 +28,4 @@
   "engines": {
     "node": "24.x"
   }
-
 }
