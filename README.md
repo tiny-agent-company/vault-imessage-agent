@@ -1,35 +1,42 @@
 # vault-imessage-agent
 
-This is an [eve](https://eve.dev) agent bootstrapped with [`eve init`](https://eve.dev/docs/reference/cli#eve-init).
+The smallest iMessage agent that can enroll a user's card in the [Agentcard Vault](https://docs.agentcard.sh/vault/quickstart).
 
-## Getting started
+- **[eve](https://github.com/vercel/eve)** (Vercel's agent framework) runs the agent and hosts it on Vercel.
+- **[Linq](https://linqapp.com)** gives the agent a phone number and delivers iMessage/SMS in and out.
+- **Agentcard** issues the Vault link; the user stores a card once and approves each later purchase with Face ID or Touch ID.
 
-First, run the development server:
+This repo is a blueprint. Clone it, drop in two sets of credentials, deploy. The step-by-step guide lives at [docs.agentcard.sh → Issuing → Guides → Connecting the Vault to an iMessage agent](https://docs.agentcard.sh/issuing/guides/connecting-the-vault-to-an-imessage-agent).
 
-```bash
-eve dev
+## What is in here
+
+```
+agent/
+  agent.ts                    model (Vercel AI Gateway id)
+  instructions.md             how the agent talks and when it enrolls a card
+  channels/linq.ts            inbound iMessage/SMS via Linq webhooks
+  lib/agentcard.ts            client-credentials token + fetch wrapper
+  tools/create_vault_link.ts  POST /api/v2/vault_sessions → link to text
+  tools/check_vault_session.ts GET /api/v2/vault_sessions/:id → pending | linked | expired
 ```
 
-The development TUI opens an interactive session where you can send messages to your agent.
-
-Start by editing `agent/instructions.md` to define the agent's identity, purpose, tone, and response guidelines. Configure its model and runtime behavior in `agent/agent.ts`.
-
-Add capabilities under `agent/`, including tools, connections, channels, skills, subagents, and schedules. eve reloads your changes as you work.
-
-## Learn more
-
-To learn more about eve, explore these resources:
-
-- [eve documentation](https://eve.dev/docs) — learn about eve's features and authoring APIs.
-- [Build an Agent tutorial](https://eve.dev/docs/tutorial/first-agent) — build and deploy an agent step by step.
-- [eve on GitHub](https://github.com/vercel/eve) — view the source and contribute.
-
-## Deploy on Vercel
-
-Deploy your agent to [Vercel](https://vercel.com) from the project root:
+## Run it
 
 ```bash
-eve deploy
+npm install
+cp .env.example .env.local   # fill in Linq + Agentcard credentials
+npm run dev                  # eve terminal UI; chat with the agent locally
+npm run deploy               # eve deploy → Vercel
 ```
 
-`eve deploy` links a Vercel project if needed and deploys the agent to production. See the [eve deployment documentation](https://eve.dev/docs/guides/deployment/vercel) for authentication, environment variables, and deployment options.
+After the first deploy, point a Linq webhook (`message.received`) at `https://<your-deployment>/eve/v1/linq` and store its `whsec_` secret as `LINQ_WEBHOOK_SECRET`.
+
+## Environment
+
+| Variable | From |
+| --- | --- |
+| `LINQ_API_KEY` | Linq dashboard → Developer Tools → API tokens |
+| `LINQ_WEBHOOK_SECRET` | Returned once when you create the webhook subscription |
+| `AGENTCARD_CLIENT_ID` / `AGENTCARD_CLIENT_SECRET` | Agentcard dashboard → Settings → API credentials |
+
+The model runs through the Vercel AI Gateway (`agent/agent.ts`). On Vercel it authenticates with the project's OIDC token; locally, run `npm run dev` and sign in with `/login`.
