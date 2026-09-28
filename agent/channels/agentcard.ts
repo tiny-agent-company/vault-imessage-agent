@@ -58,14 +58,22 @@ export default defineChannel({
       // At-least-once delivery: act on each event id once.
       if (!(await firstTime(`evt:${event.id}`))) return new Response("ok");
 
-      const note = await describe(event);
-      if (!note) return new Response("ok");
-
-      const sessionId = await eveSessionFor(String(event.data.vault_session_id ?? ""));
+      const vs = String(event.data.vault_session_id ?? "");
+      const sessionId = vs ? await eveSessionFor(vs) : null;
       if (!sessionId) return new Response("ok"); // a link this agent did not send, or one that expired
 
       // Reply 200 now; the agent turn runs after the response is sent.
-      waitUntil(attachSession(sessionId).send(note, { auth: WEBHOOK_AUTH }));
+      waitUntil(
+        (async () => {
+          const note = await describe(event);
+          if (!note) return;
+          // One notice per Vault link. A session_linked notice waits, so a
+          // card_stored that follows it claims the slot and names the new card.
+          if (note.delayMs) await new Promise((r) => setTimeout(r, note.delayMs));
+          if (!(await firstTime(`notified:${vs}`))) return;
+          await attachSession(sessionId).send(note.text, { auth: WEBHOOK_AUTH });
+        })(),
+      );
       return new Response("ok");
     }),
   ],
@@ -73,38 +81,43 @@ export default defineChannel({
 
 /**
  * The line the agent receives, or null when the event needs no message.
- * A new user stores a card and `vault.card_stored` says which. A returning
- * user unlocks an existing vault instead, so only `vault.session_linked`
- * fires; the cards they already hold are read to say the same thing.
+ *
+ * Two events can describe one visit. `vault.session_linked` fires the moment
+ * the passkey ceremony binds the user; `vault.card_stored` fires when a card
+ * lands, in practice 10 to 20 seconds later. A user who only unlocks an
+ * existing vault produces the first and never the second, so the first is
+ * worth a message; but a user who then stores a new card produces both, and
+ * the message should name the new card. So session_linked waits (delayMs)
+ * and card_stored, when it comes, claims the notice first.
  */
-async function describe(event: Envelope): Promise<string | null> {
+async function describe(event: Envelope): Promise<{ text: string; delayMs?: number } | null> {
   const d = event.data;
   const vs = String(d.vault_session_id ?? "");
   if (!vs) return null;
 
   if (event.type === "vault.card_stored") {
-    // One notice per vault session, whichever event lands first.
-    if (!(await firstTime(`notified:${vs}`))) return null;
-    return (
-      `[Agentcard] The user finished the Vault link (session ${vs}). Their ${brand(d.brand)} ending in ${d.last4} is stored ` +
-      `and their user_id is ${d.user_id}. Tell them their card is set up and you can shop for them now, in one sentence.`
-    );
+    return {
+      text:
+        `[Agentcard] The user finished the Vault link (session ${vs}). Their ${brand(d.brand)} ending in ${d.last4} is stored ` +
+        `and their user_id is ${d.user_id}. Tell them their card is set up and you can shop for them now, in one sentence.`,
+    };
   }
 
   if (event.type === "vault.session_linked") {
-    const cards = await agentcard<{ data?: { brand?: string; last4?: string }[] }>(
+    const cards = await agentcard<{ data?: { brand?: string; last4?: string; created_at?: string }[] }>(
       "GET",
       `/api/v2/vault_cards?user_id=${encodeURIComponent(String(d.user_id))}`,
     );
     const list = cards.data ?? [];
     if (list.length === 0) return null; // a new user: vault.card_stored follows with the card
-    if (!(await firstTime(`notified:${vs}`))) return null;
-    const c = list[0]!;
-    return (
-      `[Agentcard] The user finished the Vault link (session ${vs}) by unlocking their existing vault. ` +
-      `Their ${brand(c.brand)} ending in ${c.last4} is ready and their user_id is ${d.user_id}. ` +
-      `Tell them their card is set up and you can shop for them now, in one sentence.`
-    );
+    const c = list.slice().sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))[0]!;
+    return {
+      delayMs: 30_000,
+      text:
+        `[Agentcard] The user finished the Vault link (session ${vs}) by unlocking their existing vault. ` +
+        `Their ${brand(c.brand)} ending in ${c.last4} is ready and their user_id is ${d.user_id}. ` +
+        `Tell them their card is set up and you can shop for them now, in one sentence.`,
+    };
   }
 
   return null;
