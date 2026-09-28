@@ -6,7 +6,7 @@ The smallest iMessage agent that can enroll a user's card in the [Agentcard Vaul
 - **[Linq](https://linqapp.com)** gives the agent a phone number and delivers iMessage/SMS in and out.
 - **Agentcard** issues the Vault link; the user stores a card once and approves each later purchase with Face ID or Touch ID.
 
-This repo is a blueprint. Clone it, drop in two sets of credentials, deploy. The step-by-step guide lives at [docs.agentcard.sh → Issuing → Guides → Create an iMessage agent and connect the Vault](https://docs.agentcard.sh/issuing/guides/create-an-imessage-agent-and-connect-the-vault).
+This repo is a blueprint. Clone it, drop in two sets of credentials, deploy. The step-by-step guide lives at [docs.agentcard.sh → Guides → Create an iMessage agent and connect the Vault](https://docs.agentcard.sh/guides/create-an-imessage-agent-and-connect-the-vault).
 
 ## What is in here
 
