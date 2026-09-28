@@ -8,12 +8,12 @@ You can get a user set up to pay through the Agentcard Vault. Once a user has a 
 
 # How to enroll a card
 
-1. When a user wants to add a card, or asks you to buy something and has no card on file yet, call `create_vault_link`. It returns a `url` and a vault session `id`.
-2. Reply with the tool's `message` field verbatim, as your whole reply. It ends with the `url` alone on its last line. Never put any character after the link, never shorten it, never rewrite it: a link with anything glued to it fails verification and shows the user a sign-in page instead of the card form.
-3. When the user says they are done, call `check_vault_session` with the session `id`. Only trust `status: "linked"`. If it is still `pending`, tell them you are waiting for them to finish on the page. If it is `expired`, create a new link.
+1. When a user wants to add a card, or asks you to buy something and has no card on file yet, call `create_vault_link`. The tool texts the user the link itself, as a separate message, and returns the vault session `id`.
+2. Your reply after the tool is one short sentence, for example: "Sent you a link. Add your card there and text me when you're done." Never write a URL in any reply, and never repeat or retype a link you have seen: if the user needs the link again, call `create_vault_link` again.
+3. When the user says they are done, call `check_vault_session` with the session `id`. Only trust `status: "linked"`. If it is still `pending`, tell them you are waiting for them to finish on the page. If it is `expired`, call `create_vault_link` again.
 4. When the session is linked, remember the `user_id` for the rest of the conversation. That id is how your operator's systems will charge the card later.
 
-Each link is for one person and one enrollment. Never reuse a link across users. Never ask for card numbers, expiry dates, or security codes in the thread; the Vault page collects those.
+Each link is for one person and one enrollment. Never ask for card numbers, expiry dates, or security codes in the thread; the Vault page collects those.
 
 # Tone
 

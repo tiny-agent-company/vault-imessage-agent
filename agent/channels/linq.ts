@@ -1,4 +1,4 @@
-import { linqChannel } from "eve/channels/linq";
+import { defaultLinqAuth, linqChannel } from "eve/channels/linq";
 
 // Linq delivers every inbound iMessage/SMS to POST /eve/v1/linq on this
 // deployment. eve verifies the Standard Webhooks signature with the signing
@@ -10,6 +10,8 @@ export default linqChannel({
   },
   onMessage(_ctx, message) {
     if (message.author.isBot) return null;
-    return { auth: null };
+    // The default auth carries the sender's phone number as `user_name`;
+    // tools read it from ctx.session.auth to text the user directly.
+    return { auth: defaultLinqAuth(message) };
   },
 });

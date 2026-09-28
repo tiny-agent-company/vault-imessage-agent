@@ -1,6 +1,7 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { agentcard } from "../lib/agentcard";
+import { sendText } from "../lib/linq";
 
 interface VaultSession {
   id: string;
@@ -13,20 +14,29 @@ interface VaultSession {
 
 export default defineTool({
   description:
-    "Create an Agentcard Vault session and return the link to text the user. The user opens it, enters their card once, and locks it with a passkey. One link per user per enrollment.",
-  inputSchema: z.object({}),
-  label: { start: () => "Create a Vault link" },
-  async execute() {
+    "Create an Agentcard Vault session and text its link to the user as a separate message. The user opens it, enters their card once, and locks it with a passkey. Returns the session id to check later. One link per user per enrollment.",
+  inputSchema: z.object({
+    phone: z
+      .string()
+      .optional()
+      .describe("E.164 number to text. Leave empty to use the number the current message came from."),
+  }),
+  label: { start: () => "Text a Vault link" },
+  async execute({ phone }, ctx) {
+    const auth = ctx.session.auth.current;
+    const to = phone ?? (auth?.attributes?.user_name as string | undefined);
+    if (!to) throw new Error("No phone number to text the link to");
+
     const session = await agentcard<VaultSession>("POST", "/api/v2/vault_sessions", {});
+    // The URL is the whole message: a link with anything glued to it fails
+    // verification and lands the user on the Vault's sign-in page.
+    await sendText(to, session.url);
+
     return {
       id: session.id,
-      url: session.url,
+      sent_to: to,
       expires_at: session.expires_at,
       test_mode: session.test_mode,
-      // Ready to send as-is. The URL is alone on the last line: anything glued
-      // to it becomes part of the link the phone opens, and a link with extra
-      // characters fails verification and lands on the Vault's sign-in page.
-      message: `Add a card once and I can start buying for you. Text me when you're done.\n\n${session.url}`,
     };
   },
 });
