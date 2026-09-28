@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { defineChannel, POST } from "eve/channels";
 import { agentcard } from "../lib/agentcard";
-import { eveSessionFor, firstTime } from "../lib/store";
+import { eveSessionFor, firstTime, mark } from "../lib/store";
 
 // Agentcard delivers webhooks here (POST /agentcard/webhooks). When a user
 // finishes the Vault link, the event names the vault session; the store maps
@@ -67,10 +67,12 @@ export default defineChannel({
         (async () => {
           const note = await describe(event);
           if (!note) return;
-          // One notice per Vault link. A session_linked notice waits, so a
-          // card_stored that follows it claims the slot and names the new card.
+          // A session_linked notice waits, so a card_stored that follows it
+          // speaks first and names the new card; card_stored then marks the
+          // link as announced so the delayed unlock notice stays quiet.
           if (note.delayMs) await new Promise((r) => setTimeout(r, note.delayMs));
-          if (!(await firstTime(`notified:${vs}`))) return;
+          if (!(await firstTime(note.once))) return;
+          if (note.settles) await mark(note.settles);
           await attachSession(sessionId).send(note.text, { auth: WEBHOOK_AUTH });
         })(),
       );
@@ -90,13 +92,26 @@ export default defineChannel({
  * the message should name the new card. So session_linked waits (delayMs)
  * and card_stored, when it comes, claims the notice first.
  */
-async function describe(event: Envelope): Promise<{ text: string; delayMs?: number } | null> {
+interface Note {
+  text: string;
+  /** Dedupe key: the notice is sent only the first time this key is seen. */
+  once: string;
+  /** A key to mark as sent alongside, so a competing notice stays quiet. */
+  settles?: string;
+  delayMs?: number;
+}
+
+async function describe(event: Envelope): Promise<Note | null> {
   const d = event.data;
   const vs = String(d.vault_session_id ?? "");
   if (!vs) return null;
 
   if (event.type === "vault.card_stored") {
+    // Every stored card is news, including a second card added through a
+    // link that already announced one. Keyed by card, not by link.
     return {
+      once: `notified:card:${d.card_id}`,
+      settles: `notified:${vs}`,
       text:
         `[Agentcard] The user finished the Vault link (session ${vs}). Their ${brand(d.brand)} ending in ${d.last4} is stored ` +
         `and their user_id is ${d.user_id}. Tell them their card is set up and you can shop for them now, in one sentence.`,
@@ -112,6 +127,7 @@ async function describe(event: Envelope): Promise<{ text: string; delayMs?: numb
     if (list.length === 0) return null; // a new user: vault.card_stored follows with the card
     const c = list.slice().sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))[0]!;
     return {
+      once: `notified:${vs}`,
       delayMs: 30_000,
       text:
         `[Agentcard] The user finished the Vault link (session ${vs}) by unlocking their existing vault. ` +

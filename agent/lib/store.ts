@@ -27,6 +27,11 @@ export async function eveSessionFor(vaultSessionId: string): Promise<string | nu
   return (await redis().get<string>(`vault:${vaultSessionId}`)) ?? null;
 }
 
+/** Mark a key as seen without caring whether it was. */
+export async function mark(key: string, ttlSeconds = DAY) {
+  await redis().set(key, 1, { ex: ttlSeconds });
+}
+
 /** True the first time a key is seen; false on every repeat within the window. */
 export async function firstTime(key: string, ttlSeconds = DAY): Promise<boolean> {
   const set = await redis().set(key, 1, { nx: true, ex: ttlSeconds });
